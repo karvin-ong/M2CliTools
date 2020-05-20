@@ -9,7 +9,7 @@ use Symfony\Component\Console\Question\ConfirmationQuestion;
 use Magento\Framework\App\Filesystem\DirectoryList;
 use Magento\Framework\App\ResourceConnection;
 use Magento\Framework\Filesystem;
-
+use Symfony\Component\Console\Helper\Table;
 
 /**
  * Class CleanupUnusedCategoryMedia
@@ -117,8 +117,8 @@ Add the --delete option to delete the files, instead of doing a backup";
 
         $headers = array();
         $headers[] = 'filepath';
-        $this->getHelper( 'table' )
-            ->setHeaders( $headers )
+        $newtable = new Table($output); 
+        $newtable ->setHeaders( $headers )
             ->setRows( $table )->render( $output );
         $output->writeln( "Found " . number_format( $filesize / 1024 / 1024, '2' ) . " MB unused images in " . $countFiles . " files" );
         if (!$isDelete && !$isDryRun) {

@@ -11,7 +11,7 @@ use Magento\Framework\App\ResourceConnection;
 use Magento\Framework\Filesystem;
 use Magento\Swatches\Helper\Media as SwatchesMediaHelper;
 use Magento\Swatches\Model\Swatch as SwatchesModel;
-
+use Symfony\Component\Console\Helper\Table;
 
 /**
  * Class CleanupUnusedSwatchesMedia
@@ -36,6 +36,7 @@ class CleanupUnusedSwatchesMedia extends Command
         $this->filesystem = $filesystem;
         $this->resource = $resource;
         $this->swatchesMediaHelper = $mediaHelper;
+        $this->state = $state;
         parent::__construct();
     }
 
@@ -85,6 +86,7 @@ Add the --delete option to delete the files, instead of doing a backup";
         $imageDir = rtrim( $mediaDirectory->getAbsolutePath(), "/" ) . DIRECTORY_SEPARATOR . SwatchesMediaHelper::SWATCH_MEDIA_PATH;
         $backupDir = $imageDir . DIRECTORY_SEPARATOR . 'unused_files_backup';
         $directoryIterator = new \RecursiveDirectoryIterator( $imageDir, \FilesystemIterator::SKIP_DOTS );
+        $this->state->setAreaCode(\Magento\Framework\App\Area::AREA_FRONTEND); 
         foreach (new \RecursiveIteratorIterator( $directoryIterator ) as $file) {
             if (
                 strpos( $file, "/.DS_Store" ) !== false ||
@@ -96,7 +98,6 @@ Add the --delete option to delete the files, instead of doing a backup";
             ) {
                 continue;
             }
-
             $filePath = str_replace( $imageDir, "", $file );
             if (empty( $filePath )) continue;
             echo "Checking file for usage: " . $filePath . PHP_EOL;
@@ -105,10 +106,11 @@ Add the --delete option to delete the files, instead of doing a backup";
                 $countFiles++;
 
                 // we have to check the generated variants of the uploaded file as well
-                $swatchImageFile = $imageDir . DIRECTORY_SEPARATOR . SwatchesModel::SWATCH_IMAGE_NAME . '/' . $this->swatchesMediaHelper->getFolderNameSize( SwatchesModel::SWATCH_IMAGE_NAME ) . $filePath;
+                $imageConfig = $this->swatchesMediaHelper->getImageConfig();
+                $swatchImageFile = $imageDir . DIRECTORY_SEPARATOR . SwatchesModel::SWATCH_IMAGE_NAME . '/' . $this->swatchesMediaHelper->getFolderNameSize( SwatchesModel::SWATCH_IMAGE_NAME, $imageConfig ) . $filePath;
                 $swatchImageFilePath = str_replace( $imageDir, "", $swatchImageFile );
                 echo "Checking swatch image file for usage: " . $swatchImageFilePath . PHP_EOL;
-                $swatchThumbnailFile = $imageDir . DIRECTORY_SEPARATOR . SwatchesModel::SWATCH_THUMBNAIL_NAME . '/' . $this->swatchesMediaHelper->getFolderNameSize( SwatchesModel::SWATCH_THUMBNAIL_NAME ) . $filePath;
+                $swatchThumbnailFile = $imageDir . DIRECTORY_SEPARATOR . SwatchesModel::SWATCH_THUMBNAIL_NAME . '/' . $this->swatchesMediaHelper->getFolderNameSize( SwatchesModel::SWATCH_THUMBNAIL_NAME , $imageConfig ) . $filePath;
                 $swatchThumbnailFilePath = str_replace( $imageDir, "", $swatchThumbnailFile );
                 echo "Checking swatch thumbnail file for usage: " . $swatchThumbnailFilePath . PHP_EOL;
 
@@ -161,8 +163,8 @@ Add the --delete option to delete the files, instead of doing a backup";
 
         $headers = array();
         $headers[] = 'filepath';
-        $this->getHelper( 'table' )
-            ->setHeaders( $headers )
+        $newtable = new Table($output); 
+        $newtable ->setHeaders( $headers )
             ->setRows( $table )->render( $output );
         $output->writeln( "Found " . number_format( $filesize / 1024 / 1024, '2' ) . " MB unused images in " . $countFiles . " files" );
         if (!$isDelete && !$isDryRun) {
